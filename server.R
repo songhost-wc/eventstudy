@@ -185,7 +185,7 @@ shinyServer(function(input, output, session) {
     })
     if(nrow(filterdata!=0)){
       output$summary <- renderTable({
-        isolate(summarydf())
+        isolate(summarydf)
         
       },digits=5)
       
