@@ -9,7 +9,8 @@ library(data.table)
 shinyServer(function(input, output, session) {
   
   allplotvals <- reactiveValues(pdata = ggplot())
-  #currentplot <- reactiveValues(pdata = ggplot())
+  fullplot <- reactiveValues(pdata = ggplot())
+  fullsummary <- reactiveValues(summarytable = data.frame())
   countvals <- reactiveValues(linecount = 0)
   linecolours <- reactiveValues(lcolours = character())
   
@@ -156,6 +157,8 @@ shinyServer(function(input, output, session) {
     calculatedata <- calculate_data(filterdata)
     meancumreturn <- get_meancumreturn(calculatedata)
     summarydf <- get_summary(calculatedata)
+    #print(class(summarydf))
+    
     shinyWidgets::updateProgressBar(session = session, id = "pb", value = 100/10*6.6)
       #withProgress(message = 'Step 2/3', detail = 'Calculation in progress',value = 0,{})
     #})
@@ -192,19 +195,25 @@ shinyServer(function(input, output, session) {
       #drawchart()
       if(countvals$linecount == 0){
         currentplot <<- ggplot(meancumreturn) + 
-          geom_line(aes(x = Group.1, y = x, colour = "current"), size=1.5) + scale_size_area() +
+          geom_line(aes(x = Group.1, y = x, colour = "current")) + scale_size_area() +
+          #geom_line(aes(x = Group.1, y = x, colour = "current"), size=1.5) + scale_size_area() +
           xlab("Day relative to event date") + 
           ylab("Mean cumulative return") +
           coord_cartesian(xlim = c(input$window[1],input$window[2])) +
           theme(legend.position="none") +
           scale_color_manual(labels = c("current","previous"), values = c("#FF0000","#6E6E6E"))
         countvals$linecount <- countvals$linecount + 1
-        print(countvals$linecount)
+        #print(countvals$linecount)
+        fullplot$pdata <- currentplot
+        fullsummary$summarytable <- summarydf
+        #print("full:", fullplot$layers[[1]]$aes_params$size)
+        #print("current:", currentplot$layers[[1]]$aes_params$size)
       } else{
-        currentplot$layers[[countvals$linecount]]$aes_params$size <<- 0.5
+        #currentplot$layers[[countvals$linecount]]$aes_params$size <<- 0.5
         currentplot$layers[[countvals$linecount]]$mapping$colour <<- "previous"
         currentplot <<- currentplot +
-          geom_line(data=meancumreturn, aes(x = Group.1, y = x, colour = "current"), size=1.5) +
+          geom_line(data=meancumreturn, aes(x = Group.1, y = x, colour = "current")) +
+          #geom_line(data=meancumreturn, aes(x = Group.1, y = x, colour = "current"), size=1.5) +
           coord_cartesian(xlim = c(input$window[1],input$window[2]))
         countvals$linecount <- countvals$linecount + 1
         print(countvals$linecount)
@@ -232,6 +241,23 @@ shinyServer(function(input, output, session) {
     countvals$linecount <- 0
     output$meancumreturnplot <- renderPlot({
       allplotvals$pdata
+    })
+    output$summary <- renderTable({
+    })
+  })
+  
+  observeEvent(input$reset_input,{
+    #shinyjs::disable("erase_plot")
+    #shinyjs::enable("erase_plot")
+    currentplot <<- fullplot$pdata
+    allplotvals$pdata <<- currentplot
+    countvals$linecount <<- 1
+    #allplotvals$layers[[1]]$aes_params$size <- 1.5
+    output$meancumreturnplot <- renderPlot({
+      allplotvals$pdata
+    })
+    output$summary <- renderTable({
+      fullsummary$summarytable
     })
   })
 })
